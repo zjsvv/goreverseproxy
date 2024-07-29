@@ -22,22 +22,36 @@ type RevProxy struct {
 }
 
 func (rp *RevProxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	slog.Info("[RevProxy][ServeHTTP] Proxy is going to forward request to origin.")
+	// block request if it contains specific headers or parameters
+	if req.Method == http.MethodGet && shouldBlockRequest(req) {
+		slog.Debug("[RevProxy][ServeHTTP] Blocking request due to specific headers or parameters.")
+		http.Error(w, "Request blocked by proxy rules", http.StatusForbidden)
+		return
+	}
+
+	slog.Debug("[RevProxy][ServeHTTP] Proxy is going to forward request to origin.")
 
 	req.Host = rp.target.Host
 	rp.proxy.ServeHTTP(w, req)
 
-	slog.Info("[RevProxy][ServeHTTP] Origin server completes request.")
+	slog.Debug("[RevProxy][ServeHTTP] Origin server completes request.")
 }
 
-func modifyRequest(req *http.Request) {
-	slog.Info("[RevProxy][modifyRequest]")
-	req.Header.Set("X-Proxy", "Simple-Reverse-Proxy")
+func shouldBlockRequest(req *http.Request) bool {
+	// check for forbidden headers
+	if req.Header.Get("X-custom-key") != "" {
+		return true
+	}
+	// check for forbidden query parameters
+	if req.URL.Query().Get("blockedParam") != "" {
+		return true
+	}
+	return false
 }
 
 func modifyResponse() func(*http.Response) error {
 	return func(resp *http.Response) error {
-		slog.Info("[RevProxy][modifyResponse]")
+		slog.Debug("[RevProxy][modifyResponse]")
 		resp.Header.Set("X-Proxy", "Magical")
 		return nil
 	}
@@ -55,25 +69,18 @@ func NewRevProxy(ctx context.Context, rawUrl string) (*RevProxy, error) {
 		proxy:   httputil.NewSingleHostReverseProxy(remote),
 	}
 
-	// Modify requests
-	originalDirector := s.proxy.Director
-	s.proxy.Director = func(r *http.Request) {
-		originalDirector(r)
-		modifyRequest(r)
-	}
-
-	// Modify response
+	// customize response
 	s.proxy.ModifyResponse = modifyResponse()
 
 	return s, nil
 }
 
 func main() {
-	// Set the logger for the application
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	// set a text logger
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	slog.SetDefault(logger)
 
-	// Create context that listens for the interrupt signal from the OS.
+	// create context that listens for the interrupt signal from the OS.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -89,22 +96,21 @@ func main() {
 		Handler: middleware.NewLogger(revProxy),
 	}
 
-	// Initializing the server in a goroutine so that
-	// it won't block the graceful shutdown handling below
+	// initializing the server in a goroutine so that it won't block the graceful shutdown handling below
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %s\n", err)
 		}
 	}()
 
-	// Listen for the interrupt signal.
+	// listen for the interrupt signal.
 	<-ctx.Done()
 
-	// Restore default behavior on the interrupt signal and notify user of shutdown.
+	// restore default behavior on the interrupt signal and notify user of shutdown
 	stop()
 	slog.Info("shutting down gracefully, press Ctrl+C again to force")
 
-	// The context is used to inform the server it has 5 seconds to finish
+	// the context is used to inform the server it has 5 seconds to finish
 	// the request it is currently handling
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
