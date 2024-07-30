@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"log"
 	"log/slog"
 	"net/http"
 	"time"
@@ -73,20 +72,26 @@ func NewLogger(handlerToWrap http.Handler) *Logger {
 }
 
 func recordRequest(req *http.Request) {
-	header := req.Header
+	// create a new reader that simultaneously reads data from a source reader and write the same data to a writer
+	copy := new(bytes.Buffer)
+	req.Body = io.NopCloser(io.TeeReader(req.Body, copy))
 
-	var reqBody []byte
-	if body, err := io.ReadAll(req.Body); err != nil {
-		reqBody = body
-		req.Body = io.NopCloser(bytes.NewBuffer(reqBody))
-		log.Println(reqBody)
+	// everything read from req.Body will be copied to copy
+	data, err := io.ReadAll(req.Body)
+	if err != nil {
+		slog.Error("Error reading from request body", slog.String("err", err.Error()))
+		return
 	}
 
-	cloneHeader := header.Clone()
+	// assign the copied buffer to request body to let next handler handle the request body
+	req.Body = io.NopCloser(copy)
 
+	// clone headers
+	cloneHeader := req.Header.Clone()
 	headerJSON, err := json.Marshal(cloneHeader)
 	if err != nil {
-		log.Printf("json.Marshal header failed. err: %+s\n", err)
+		slog.Error("json.Marshal header failed", slog.String("err", err.Error()))
+		return
 	}
 
 	slog.Debug("[middleware][recordRequest]")
@@ -96,14 +101,14 @@ func recordRequest(req *http.Request) {
 		slog.String("path", req.URL.Path),
 		slog.String("query", req.URL.RawQuery),
 		slog.String("header", string(headerJSON)),
-		slog.String("Body", string(reqBody)),
+		slog.String("Body", string(data)),
 	)
 }
 
 func recordResponse(lrw loggingResponseWriter, duration time.Duration) {
 	headerJSON, err := json.Marshal(lrw.Header())
 	if err != nil {
-		log.Printf("json.Marshal header failed. err: %+s\n", err)
+		slog.Error("json.Marshal header failed", slog.String("err", err.Error()))
 	}
 
 	slog.Debug("[middleware] [recordResponse]")
