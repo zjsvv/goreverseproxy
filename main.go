@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/zjsvv/goreverseproxy/middleware"
+	_ "github.com/zjsvv/goreverseproxy/config"
 )
 
 type RevProxy struct {

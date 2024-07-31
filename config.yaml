@@ -1,0 +1,10 @@
+targetUrl: "http://localhost"
+targetPort: "9000"
+
+blockedHeaders:
+  - "X-Custom-Key"
+  - "AccessToken"
+
+blockedQueryParams:
+  - "fliter"
+  - "category"
