@@ -59,17 +59,13 @@ type RevProxyConfig struct {
 }
 
 func (r *RevProxyConfig) IsHeaderBlocked(header string) bool {
-	if _, exist := r.BlockedHeadersMap[header]; exist {
-		return true
-	}
-	return false
+	_, exist := r.BlockedHeadersMap[header]
+	return exist
 }
 
 func (r *RevProxyConfig) IsQueryParamBlocked(param string) bool {
-	if _, exist := r.BlockedQueryParamsMap[param]; exist {
-		return true
-	}
-	return false
+	_, exist := r.BlockedQueryParamsMap[param]
+	return exist
 }
 
 func GetConfig() *RevProxyConfig {
