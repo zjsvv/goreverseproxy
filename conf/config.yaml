@@ -3,7 +3,7 @@ targetPort: "9000"
 
 blockedHeaders:
   - "X-Custom-Key"
-  - "AccessToken"
+  - "Accesstoken"
 
 blockedQueryParams:
   - "filter"

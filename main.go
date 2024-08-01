@@ -12,8 +12,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zjsvv/goreverseproxy/middleware"
 	"github.com/zjsvv/goreverseproxy/config"
+	"github.com/zjsvv/goreverseproxy/middleware"
 )
 
 type RevProxy struct {
@@ -41,15 +41,20 @@ func (rp *RevProxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 func shouldBlockRequest(req *http.Request) bool {
 	config := config.GetConfig()
 
-	// check for forbidden headers
-	if config.IsHeaderBlocked("X-Custom-Key") {
-		return true
+	// check if any forbidden header exists
+	for header := range req.Header {
+		if config.IsHeaderBlocked(header) {
+			return true
+		}
 	}
 
-	// check for forbidden query parameters
-	if req.URL.Query().Get("blockedParam") != "" {
-		return true
+	// check if any query parameters exists
+	for param := range req.URL.Query() {
+		if config.IsQueryParamBlocked(param) {
+			return true
+		}
 	}
+
 	return false
 }
 
