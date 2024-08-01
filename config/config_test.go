@@ -2,44 +2,56 @@ package config
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
-func TestLoadConfig(t *testing.T) {
-	// Setup a temporary directory for testing
-	tmpDir := t.TempDir()
+// Create a temporary config file for testing
+func createTestConfigFile(t *testing.T, content string) string {
+	t.Helper()
+	tmpFile, err := os.CreateTemp("", "config*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer tmpFile.Close()
 
-	// Create a temporary config.yaml file
-	configContent := `
+	_, err = tmpFile.WriteString(content)
+	if err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+
+	return tmpFile.Name()
+}
+
+func TestLoadConfig(t *testing.T) {
+	testConfigContent := `
 targetUrl: "http://localhost"
-targetPort: "8080"
+targetPort: "9000"
 
 blockedHeaders:
   - "X-Custom-Key"
   - "AccessToken"
 
 blockedQueryParams:
-  - "fliter"
-  - "apple"
+  - "filter"
+  - "offset"
 `
-	configFilePath := filepath.Join(tmpDir, "config.yaml")
-	if err := os.WriteFile(configFilePath, []byte(configContent), 0644); err != nil {
-		t.Fatalf("Failed to write temp config file: %v", err)
-	}
+	configFilePath := createTestConfigFile(t, testConfigContent)
+	defer os.Remove(configFilePath)
 
-	// override the config file path
-	revproxConfigAbsPath = configFilePath
+	// set the path to the temp file
+	revproxConfigPath = configFilePath
 
-	// load the config
-	config := LoadConfig()
+	config := &RevProxyConfig{}
+	config.loadConfig()
 
 	// check if the config is loaded correctly
 	if config.TargetUrl != "http://localhost" {
 		t.Errorf("Expected TargetUrl to be 'http://localhost', got %s", config.TargetUrl)
 	}
-	if config.TargetPort != "8080" {
-		t.Errorf("Expected TargetPort to be '8080', got %s", config.TargetPort)
+	if config.TargetPort != "9000" {
+		t.Errorf("Expected TargetPort to be '9000', got %s", config.TargetPort)
 	}
 
 	expectedBlockedHeaders := []string{"X-Custom-Key", "AccessToken"}
@@ -55,7 +67,7 @@ blockedQueryParams:
 		}
 	}
 
-	expectedBlockedQueryParams := []string{"fliter", "apple"}
+	expectedBlockedQueryParams := []string{"filter", "offset"}
 	if len(config.BlockedQueryParams) != len(expectedBlockedQueryParams) {
 		t.Fatalf("Expected %d blocked query params, got %d", len(expectedBlockedQueryParams), len(config.BlockedQueryParams))
 	}
@@ -67,6 +79,44 @@ blockedQueryParams:
 			t.Errorf("Expected query param %s to be in BlockedQueryParamsMap", param)
 		}
 	}
+}
+
+func TestLoadConfigPanicOnFileReadError(t *testing.T) {
+	// set an invalid config path to induce a file read error
+	revproxConfigPath = "invalid/path/to/config.yaml"
+
+	// recover from panic
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Expected panic but did not get one")
+		} else if r != "os.ReadFile failed. err: open invalid/path/to/config.yaml: no such file or directory" {
+			t.Errorf("Unexpected panic message: %v", r)
+		}
+	}()
+
+	config := &RevProxyConfig{}
+	config.loadConfig()
+}
+
+func TestLoadConfigPanicOnYamlUnmarshalError(t *testing.T) {
+	testConfigContent := `invalid_yaml:   true:`
+	configFilePath := createTestConfigFile(t, testConfigContent)
+	defer os.Remove(configFilePath)
+
+	// set the path to the temp file
+	revproxConfigPath = configFilePath
+
+	// recover from panic
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Expected panic but did not get one")
+		} else if r != "yaml.Unmarshal failed. err: yaml: mapping values are not allowed in this context" {
+			t.Errorf("Unexpected panic message: %v", r)
+		}
+	}()
+
+	config := &RevProxyConfig{}
+	config.loadConfig()
 }
 
 func TestIsHeaderBlocked(t *testing.T) {
@@ -102,7 +152,7 @@ func TestIsQueryParamBlocked(t *testing.T) {
 	// create a RevProxyConfig instance with some blocked query params
 	config := &RevProxyConfig{
 		BlockedQueryParamsMap: map[string]struct{}{
-			"fliter": {},
+			"filter": {},
 			"fruit":  {},
 		},
 	}
@@ -112,7 +162,7 @@ func TestIsQueryParamBlocked(t *testing.T) {
 		header   string
 		expected bool
 	}{
-		{"fliter", true},
+		{"filter", true},
 		{"fruit", true},
 		{"offset", false},
 		{"limit", false},
@@ -124,5 +174,90 @@ func TestIsQueryParamBlocked(t *testing.T) {
 		if result != tc.expected {
 			t.Errorf("IsQueryParamsBlocked(%s) = %v; expected %v", tc.header, result, tc.expected)
 		}
+	}
+}
+
+func TestGetConfig(t *testing.T) {
+	testConfigContent := `
+targetUrl: "http://localhost"
+targetPort: "8888"
+
+blockedHeaders:
+  - "X-Custom-Key"
+
+blockedQueryParams:
+  - "limit"
+  - "offset"
+`
+	configFilePath := createTestConfigFile(t, testConfigContent)
+	defer os.Remove(configFilePath)
+	revproxConfigPath = configFilePath
+
+	revProxyConfig = &RevProxyConfig{}
+	revProxyConfig.loadConfig()
+
+	want := &RevProxyConfig{
+		TargetUrl:  "http://localhost",
+		TargetPort: "8888",
+		BlockedHeaders: []string{
+			"X-Custom-Key",
+		},
+		BlockedHeadersMap: map[string]struct{}{
+			"X-Custom-Key": {},
+		},
+		BlockedQueryParams: []string{
+			"limit",
+			"offset",
+		},
+		BlockedQueryParamsMap: map[string]struct{}{
+			"limit":  {},
+			"offset": {},
+		},
+	}
+
+	got := GetConfig()
+
+	if !cmp.Equal(want, got) {
+		t.Errorf("Config loaded incorrectly. Got %+v, expected %+v", got, want)
+	}
+}
+
+func TestInitConfig(t *testing.T) {
+	testConfigContent := `
+targetUrl: http://localhost
+targetPort: "9000"
+blockedHeaders:
+  - "X-Custom-Key"
+  - "AccessToken"
+blockedQueryParams:
+  - "filter"
+  - "category"
+`
+	configFilePath := createTestConfigFile(t, testConfigContent)
+	defer os.Remove(configFilePath)
+
+	// set the path to the temp file
+	revproxConfigPath = configFilePath
+
+	revProxyConfig = &RevProxyConfig{}
+	InitConfig()
+
+	want := &RevProxyConfig{
+		TargetUrl:          "http://localhost",
+		TargetPort:         "9000",
+		BlockedHeaders:     []string{"X-Custom-Key", "AccessToken"},
+		BlockedQueryParams: []string{"filter", "category"},
+		BlockedHeadersMap: map[string]struct{}{
+			"X-Custom-Key": {},
+			"AccessToken":  {},
+		},
+		BlockedQueryParamsMap: map[string]struct{}{
+			"filter":   {},
+			"category": {},
+		},
+	}
+
+	if !cmp.Equal(revProxyConfig, want) {
+		t.Errorf("Config loaded incorrectly. Got %+v, expected %+v", revProxyConfig, want)
 	}
 }

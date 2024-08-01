@@ -6,5 +6,5 @@ blockedHeaders:
   - "AccessToken"
 
 blockedQueryParams:
-  - "fliter"
+  - "filter"
   - "category"

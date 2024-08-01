@@ -3,51 +3,14 @@ package config
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"gopkg.in/yaml.v3"
 )
 
 var (
-	revproxConfigAbsPath = "../config.yaml"
-	revProxyConfig       = &RevProxyConfig{}
+	revproxConfigPath = "conf/config.yaml"
+	revProxyConfig    = &RevProxyConfig{}
 )
-
-func init() {
-	revProxyConfig = LoadConfig()
-}
-
-func LoadConfig() *RevProxyConfig {
-	configPath, err := filepath.Abs(revproxConfigAbsPath)
-	if err != nil {
-		panic(fmt.Sprintf("filepath.Abs failed. err: %+v", err))
-	}
-
-	conf := &RevProxyConfig{}
-
-	file, err := os.ReadFile(configPath)
-	if err != nil {
-		panic(fmt.Sprintf("os.ReadFile failed. err: %+v", err))
-	}
-	err = yaml.Unmarshal(file, conf)
-	if err != nil {
-		panic(fmt.Sprintf("yaml.Unmarshal failed. err: %+v", err))
-	}
-
-	// update blockedHeaders mapping
-	conf.BlockedHeadersMap = make(map[string]struct{})
-	for _, header := range conf.BlockedHeaders {
-		conf.BlockedHeadersMap[header] = struct{}{}
-	}
-
-	// update blockedQueryParams mapping
-	conf.BlockedQueryParamsMap = make(map[string]struct{})
-	for _, param := range conf.BlockedQueryParams {
-		conf.BlockedQueryParamsMap[param] = struct{}{}
-	}
-
-	return conf
-}
 
 type RevProxyConfig struct {
 	TargetUrl             string              `yaml:"targetUrl"`
@@ -56,6 +19,29 @@ type RevProxyConfig struct {
 	BlockedHeadersMap     map[string]struct{} `yaml:"-"`
 	BlockedQueryParams    []string            `yaml:"blockedQueryParams"`
 	BlockedQueryParamsMap map[string]struct{} `yaml:"-"`
+}
+
+func (r *RevProxyConfig) loadConfig() {
+	file, err := os.ReadFile(revproxConfigPath)
+	if err != nil {
+		panic(fmt.Sprintf("os.ReadFile failed. err: %+v", err))
+	}
+	err = yaml.Unmarshal(file, r)
+	if err != nil {
+		panic(fmt.Sprintf("yaml.Unmarshal failed. err: %+v", err))
+	}
+
+	// update blockedHeaders mapping
+	r.BlockedHeadersMap = make(map[string]struct{})
+	for _, header := range r.BlockedHeaders {
+		r.BlockedHeadersMap[header] = struct{}{}
+	}
+
+	// update blockedQueryParams mapping
+	r.BlockedQueryParamsMap = make(map[string]struct{})
+	for _, param := range r.BlockedQueryParams {
+		r.BlockedQueryParamsMap[param] = struct{}{}
+	}
 }
 
 func (r *RevProxyConfig) IsHeaderBlocked(header string) bool {
@@ -70,4 +56,8 @@ func (r *RevProxyConfig) IsQueryParamBlocked(param string) bool {
 
 func GetConfig() *RevProxyConfig {
 	return revProxyConfig
+}
+
+func InitConfig() {
+	revProxyConfig.loadConfig()
 }

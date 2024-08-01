@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/zjsvv/goreverseproxy/middleware"
-	_ "github.com/zjsvv/goreverseproxy/config"
+	"github.com/zjsvv/goreverseproxy/config"
 )
 
 type RevProxy struct {
@@ -39,10 +39,13 @@ func (rp *RevProxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func shouldBlockRequest(req *http.Request) bool {
+	config := config.GetConfig()
+
 	// check for forbidden headers
-	if req.Header.Get("X-custom-key") != "" {
+	if config.IsHeaderBlocked("X-Custom-Key") {
 		return true
 	}
+
 	// check for forbidden query parameters
 	if req.URL.Query().Get("blockedParam") != "" {
 		return true
@@ -84,6 +87,9 @@ func main() {
 	// create context that listens for the interrupt signal from the OS.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	// init config
+	config.InitConfig()
 
 	origin := "http://localhost:9000"
 
