@@ -36,6 +36,10 @@ blockedHeaders:
 blockedQueryParams:
   - "filter"
   - "offset"
+
+maskedNeededKeys:
+  - "address"
+  - "creditcard"
 `
 	configFilePath := createTestConfigFile(t, testConfigContent)
 	defer os.Remove(configFilePath)
@@ -77,6 +81,19 @@ blockedQueryParams:
 		}
 		if _, exists := config.BlockedQueryParamsMap[param]; !exists {
 			t.Errorf("Expected query param %s to be in BlockedQueryParamsMap", param)
+		}
+	}
+
+	expectedMaskedNeededKeys := []string{"address", "creditcard"}
+	if len(config.MaskedNeededKeys) != len(expectedMaskedNeededKeys) {
+		t.Fatalf("Expected %d blocked query params, got %d", len(expectedMaskedNeededKeys), len(config.MaskedNeededKeys))
+	}
+	for i, key := range expectedMaskedNeededKeys {
+		if config.MaskedNeededKeys[i] != key {
+			t.Errorf("Expected MaskedNeededKeys[%d] to be %s, got %s", i, key, config.MaskedNeededKeys[i])
+		}
+		if _, exists := config.MaskedNeededKeysMap[key]; !exists {
+			t.Errorf("Expected query param %s to be in MaskedNeededKeysMap", key)
 		}
 	}
 }
@@ -188,6 +205,10 @@ blockedHeaders:
 blockedQueryParams:
   - "limit"
   - "offset"
+
+maskedNeededKeys:
+  - "address"
+  - "creditcard"
 `
 	configFilePath := createTestConfigFile(t, testConfigContent)
 	defer os.Remove(configFilePath)
@@ -213,6 +234,14 @@ blockedQueryParams:
 			"limit":  {},
 			"offset": {},
 		},
+		MaskedNeededKeys: []string{
+			"address",
+			"creditcard",
+		},
+		MaskedNeededKeysMap: map[string]struct{}{
+			"address":  {},
+			"creditcard": {},
+		},
 	}
 
 	got := GetConfig()
@@ -232,6 +261,9 @@ blockedHeaders:
 blockedQueryParams:
   - "filter"
   - "category"
+maskedNeededKeys:
+  - "address"
+  - "creditcard"
 `
 	configFilePath := createTestConfigFile(t, testConfigContent)
 	defer os.Remove(configFilePath)
@@ -247,6 +279,7 @@ blockedQueryParams:
 		TargetPort:         "9000",
 		BlockedHeaders:     []string{"X-Custom-Key", "AccessToken"},
 		BlockedQueryParams: []string{"filter", "category"},
+		MaskedNeededKeys: []string{"address", "creditcard"},
 		BlockedHeadersMap: map[string]struct{}{
 			"X-Custom-Key": {},
 			"AccessToken":  {},
@@ -254,6 +287,10 @@ blockedQueryParams:
 		BlockedQueryParamsMap: map[string]struct{}{
 			"filter":   {},
 			"category": {},
+		},
+		MaskedNeededKeysMap: map[string]struct{}{
+			"address":   {},
+			"creditcard": {},
 		},
 	}
 

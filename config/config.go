@@ -19,6 +19,8 @@ type RevProxyConfig struct {
 	BlockedHeadersMap     map[string]struct{} `yaml:"-"`
 	BlockedQueryParams    []string            `yaml:"blockedQueryParams"`
 	BlockedQueryParamsMap map[string]struct{} `yaml:"-"`
+	MaskedNeededKeys      []string            `yaml:"maskedNeededKeys"`
+	MaskedNeededKeysMap   map[string]struct{} `yaml:"-"`
 }
 
 func (r *RevProxyConfig) loadConfig() {
@@ -41,6 +43,12 @@ func (r *RevProxyConfig) loadConfig() {
 	r.BlockedQueryParamsMap = make(map[string]struct{})
 	for _, param := range r.BlockedQueryParams {
 		r.BlockedQueryParamsMap[param] = struct{}{}
+	}
+
+	// update maskedNeededKeys mapping
+	r.MaskedNeededKeysMap = make(map[string]struct{})
+	for _, key := range r.MaskedNeededKeys {
+		r.MaskedNeededKeysMap[key] = struct{}{}
 	}
 }
 
