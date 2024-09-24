@@ -34,13 +34,8 @@ func (rp *RevProxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Request blocked by proxy rules", http.StatusForbidden)
 		return
 	}
-
-	slog.Debug("[RevProxy][ServeHTTP] Proxy is going to forward request to origin.")
-
 	req.Host = rp.target.Host
 	rp.proxy.ServeHTTP(w, req)
-
-	slog.Debug("[RevProxy][ServeHTTP] Origin server completes request.")
 }
 
 func shouldBlockRequest(req *http.Request) bool {
@@ -54,7 +49,7 @@ func shouldBlockRequest(req *http.Request) bool {
 		}
 	}
 
-	// check if any query parameters exists
+	// check if any forbidden query parameters exists
 	for param := range req.URL.Query() {
 		if config.IsQueryParamBlocked(param) {
 			slog.Debug("[RevProxy][shouldBlockRequest]", slog.String("blockedQueryParam", param))
@@ -82,8 +77,6 @@ func maskSensitiveInfo(data string) (string, error) {
 }
 
 func modifyResponse(r *http.Response) error {
-	slog.Debug("[RevProxy][modifyResponse]")
-	
 	originalContentLength := r.ContentLength
 
 	// read the response body

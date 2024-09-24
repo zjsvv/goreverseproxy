@@ -60,7 +60,6 @@ func (l *Logger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	recordRequest(r)
 
-	slog.Debug("[middleware][ServeHTTP]")
 	l.Handler.ServeHTTP(&lrw, r)
 
 	recordResponse(lrw, time.Since(start))
@@ -94,7 +93,6 @@ func recordRequest(req *http.Request) {
 		return
 	}
 
-	slog.Debug("[middleware][recordRequest]")
 	slog.Info("Record request",
 		slog.Int64("timestamp", time.Now().Unix()),
 		slog.String("method", req.Method),
@@ -111,7 +109,6 @@ func recordResponse(lrw loggingResponseWriter, duration time.Duration) {
 		slog.Error("json.Marshal header failed", slog.String("err", err.Error()))
 	}
 
-	slog.Debug("[middleware] [recordResponse]")
 	slog.Info("Request completed",
 		slog.Int("status", lrw.responseData.status),
 		slog.Int("size", lrw.responseData.size),

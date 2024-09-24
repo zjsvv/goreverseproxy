@@ -10,7 +10,6 @@ blockedQueryParams:
   - "category"
 
 maskedNeededKeys:
-  - "title"
   - "address"
   - "authproviderid"
   - "bankaccount"
