@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"log"
 	"log/slog"
 	"net/http"
@@ -9,8 +11,11 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
+
+	jsonMask "github.com/bolom009/go-json-mask"
 
 	"github.com/zjsvv/goreverseproxy/config"
 	"github.com/zjsvv/goreverseproxy/middleware"
@@ -58,12 +63,55 @@ func shouldBlockRequest(req *http.Request) bool {
 	return false
 }
 
-func modifyResponse() func(*http.Response) error {
-	return func(resp *http.Response) error {
-		slog.Debug("[RevProxy][modifyResponse]")
-		resp.Header.Set("X-Proxy", "Magical")
-		return nil
+func maskSensitiveInfo(data string) (string, error) {
+	mask := jsonMask.NewJSONMask(config.GetConfig().MaskedNeededKeys...)
+	mask.RegisterMaskStringFunc(jsonMask.MaskFilledString("*"))
+
+	maskedData, err := mask.Mask(data)
+	if err != nil {
+		return "", err
 	}
+	slog.Debug("[RevProxy][maskSensitiveInfo]",
+		slog.String("originalData", data),
+		slog.String("maskedData", maskedData),
+	)
+
+	return maskedData, nil
+}
+
+func modifyResponse(r *http.Response) error {
+	slog.Debug("[RevProxy][modifyResponse]")
+
+	originalContentLength := r.ContentLength
+
+	// read the response body
+	b, err := io.ReadAll(r.Body)
+	if err != nil {
+		slog.Error("Failed to read response body", slog.String("error", err.Error()))
+		return err
+	}
+
+	// mask sensitive data
+	maskedData, err := maskSensitiveInfo(string(b))
+	if err != nil {
+		slog.Error("Failed to mask sensitive information", slog.String("error", err.Error()))
+		return err
+	}
+
+	// reassign the modified body
+	buf := bytes.NewBufferString(maskedData)
+	r.Body = io.NopCloser(buf)
+
+	// update Content-Length header
+	modifiedContentLength := buf.Len()
+	r.Header["Content-Length"] = []string{strconv.Itoa(modifiedContentLength)}
+
+	slog.Debug("[RevProxy][modifyResponse]",
+		slog.Int64("originalContentLength", originalContentLength),
+		slog.Int("modifiedContentLength", modifiedContentLength),
+	)
+
+	return nil
 }
 
 func NewRevProxy(ctx context.Context, rawUrl string) (*RevProxy, error) {
@@ -79,7 +127,7 @@ func NewRevProxy(ctx context.Context, rawUrl string) (*RevProxy, error) {
 	}
 
 	// customize response
-	s.proxy.ModifyResponse = modifyResponse()
+	s.proxy.ModifyResponse = modifyResponse
 
 	return s, nil
 }

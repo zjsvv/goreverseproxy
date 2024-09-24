@@ -1,3 +1,5 @@
+github.com/bolom009/go-json-mask v1.0.1 h1:T7supoIfgTMzwmyi2snelIGP5se1c3gktUIh9/09F3s=
+github.com/bolom009/go-json-mask v1.0.1/go.mod h1:NH7nGMDd60WQI8r/Hwp2/NJ0Y8jdC94uaTK5ocRO0go=
 github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
 github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
