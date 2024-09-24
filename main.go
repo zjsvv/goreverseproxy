@@ -49,6 +49,7 @@ func shouldBlockRequest(req *http.Request) bool {
 	// check if any forbidden header exists
 	for header := range req.Header {
 		if config.IsHeaderBlocked(header) {
+			slog.Debug("[RevProxy][shouldBlockRequest]", slog.String("blockedHeader", header))
 			return true
 		}
 	}
@@ -56,6 +57,7 @@ func shouldBlockRequest(req *http.Request) bool {
 	// check if any query parameters exists
 	for param := range req.URL.Query() {
 		if config.IsQueryParamBlocked(param) {
+			slog.Debug("[RevProxy][shouldBlockRequest]", slog.String("blockedQueryParam", param))
 			return true
 		}
 	}
@@ -81,7 +83,7 @@ func maskSensitiveInfo(data string) (string, error) {
 
 func modifyResponse(r *http.Response) error {
 	slog.Debug("[RevProxy][modifyResponse]")
-
+	
 	originalContentLength := r.ContentLength
 
 	// read the response body
@@ -144,9 +146,9 @@ func main() {
 	// init config
 	config.InitConfig()
 
-	origin := "http://localhost:9000"
+	cfg := config.GetConfig()
 
-	revProxy, err := NewRevProxy(context.Background(), origin)
+	revProxy, err := NewRevProxy(context.Background(), cfg.TargetUrl+":"+cfg.TargetPort)
 	if err != nil {
 		panic(err)
 	}

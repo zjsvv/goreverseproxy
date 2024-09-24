@@ -101,7 +101,7 @@ func recordRequest(req *http.Request) {
 		slog.String("path", req.URL.Path),
 		slog.String("query", req.URL.RawQuery),
 		slog.String("header", string(headerJSON)),
-		slog.String("Body", string(data)),
+		slog.String("body", string(data)),
 	)
 }
 
