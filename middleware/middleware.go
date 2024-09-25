@@ -10,6 +10,10 @@ import (
 	"time"
 )
 
+var (
+	jsonMarshal = json.Marshal
+)
+
 // struct for holding response details
 type responseData struct {
 	status int
@@ -89,9 +93,9 @@ func recordRequest(req *http.Request) {
 	// get headers
 	headers := composeRequestHeaders(req)
 
-	headersJSON, err := json.Marshal(headers)
+	headersJSON, err := jsonMarshal(headers)
 	if err != nil {
-		slog.Error("json.Marshal header failed", slog.String("err", err.Error()))
+		slog.Error("jsonMarshal header failed", slog.String("err", err.Error()))
 		return
 	}
 
@@ -106,9 +110,9 @@ func recordRequest(req *http.Request) {
 }
 
 func recordResponse(lrw loggingResponseWriter, duration time.Duration) {
-	headersJSON, err := json.Marshal(lrw.Header())
+	headersJSON, err := jsonMarshal(lrw.Header())
 	if err != nil {
-		slog.Error("json.Marshal header failed", slog.String("err", err.Error()))
+		slog.Error("jsonMarshal header failed", slog.String("err", err.Error()))
 	}
 
 	slog.Info("Request completed",
