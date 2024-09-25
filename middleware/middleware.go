@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -85,9 +86,10 @@ func recordRequest(req *http.Request) {
 	// assign the copied buffer to request body to let next handler handle the request body
 	req.Body = io.NopCloser(copy)
 
-	// clone headers
-	cloneHeader := req.Header.Clone()
-	headerJSON, err := json.Marshal(cloneHeader)
+	// get headers
+	headers := composeRequestHeaders(req)
+
+	headersJSON, err := json.Marshal(headers)
 	if err != nil {
 		slog.Error("json.Marshal header failed", slog.String("err", err.Error()))
 		return
@@ -98,13 +100,13 @@ func recordRequest(req *http.Request) {
 		slog.String("method", req.Method),
 		slog.String("path", req.URL.Path),
 		slog.String("query", req.URL.RawQuery),
-		slog.String("header", string(headerJSON)),
+		slog.String("headers", string(headersJSON)),
 		slog.String("body", string(data)),
 	)
 }
 
 func recordResponse(lrw loggingResponseWriter, duration time.Duration) {
-	headerJSON, err := json.Marshal(lrw.Header())
+	headersJSON, err := json.Marshal(lrw.Header())
 	if err != nil {
 		slog.Error("json.Marshal header failed", slog.String("err", err.Error()))
 	}
@@ -113,7 +115,26 @@ func recordResponse(lrw loggingResponseWriter, duration time.Duration) {
 		slog.Int("status", lrw.responseData.status),
 		slog.Int("size", lrw.responseData.size),
 		slog.Int64("duration(ms)", duration.Milliseconds()),
-		slog.String("header", string(headerJSON)),
+		slog.String("headers", string(headersJSON)),
 		slog.String("body", string(lrw.responseData.body.String())),
 	)
+}
+
+func composeRequestHeaders(req *http.Request) map[string][]string {
+	if req == nil {
+		return make(map[string][]string)
+	}
+
+	headers := make(map[string][]string)
+
+	cloneHeader := req.Header.Clone()
+
+	for key, val := range cloneHeader {
+		headers[key] = val
+	}
+
+	headers["Content-Length"] = []string{strconv.Itoa(int(req.ContentLength))}
+	headers["Host"] = []string{req.Host}
+
+	return headers
 }

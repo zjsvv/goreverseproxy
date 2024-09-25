@@ -99,7 +99,7 @@ func modifyResponse(r *http.Response) error {
 
 	// update Content-Length header
 	modifiedContentLength := buf.Len()
-	r.Header["Content-Length"] = []string{strconv.Itoa(modifiedContentLength)}
+	r.Header.Set("Content-Length", strconv.Itoa(modifiedContentLength))
 
 	slog.Debug("[RevProxy][modifyResponse]",
 		slog.Int64("originalContentLength", originalContentLength),
@@ -129,7 +129,8 @@ func NewRevProxy(ctx context.Context, rawUrl string) (*RevProxy, error) {
 
 func main() {
 	// set a text logger
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	// TODO: set log level by flag, default level should be LevelInfo  Level = 0
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(logger)
 
 	// create context that listens for the interrupt signal from the OS.
