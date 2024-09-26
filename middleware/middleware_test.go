@@ -14,7 +14,7 @@ import (
 )
 
 
-func TestLoggerMiddlewareWithMockLog(t *testing.T) {
+func TestLoggerMiddleware_WithMockLog(t *testing.T) {
 	mockResponseBody := "this is mock response"
 
 	// create a mock logger
@@ -63,7 +63,7 @@ func TestLoggerMiddlewareWithMockLog(t *testing.T) {
 	assert.Contains(t, logOutput, "status=200")
 }
 
-func TestLoggerMiddlewareWithErrorLog(t *testing.T) {
+func TestLoggerMiddleware_WithErrorLog(t *testing.T) {
 	mockResponseBody := "Something went wrong"
 
 	// create a mock logger
@@ -117,7 +117,7 @@ func (e *errorReader) Read(p []byte) (int, error) {
 	return 0, errors.New("mock read error")
 }
 
-func TestRecordRequestReadAllError(t *testing.T) {
+func TestRecordRequest_ReadAllError(t *testing.T) {
 	// create a mock logger
 	buffer := new(bytes.Buffer)
 	mockLogger := slog.New(slog.NewTextHandler(buffer, nil))
@@ -138,7 +138,7 @@ func TestRecordRequestReadAllError(t *testing.T) {
 	assert.Contains(t, logOutput, "Error reading from request body")
 }
 
-func TestRecordRequestJSONMarshalError(t *testing.T) {
+func TestRecordRequest_JSONMarshalError(t *testing.T) {
 	// create a mock logger
 	buffer := new(bytes.Buffer)
 	mockLogger := slog.New(slog.NewTextHandler(buffer, nil))
@@ -166,13 +166,13 @@ func TestRecordRequestJSONMarshalError(t *testing.T) {
 	assert.Contains(t, logOutput, "jsonMarshal header failed")
 }
 
-func TestComposeRequestHeadersNilRequest(t *testing.T) {
+func TestComposeRequestHeaders_NilRequest(t *testing.T) {
 	result := composeRequestHeaders(nil)
 
 	assert.Equal(t, 0, len(result), "Expected an empty map")
 }
 
-func TestComposeRequestHeadersWithHeaders(t *testing.T) {
+func TestComposeRequestHeaders_WithHeaders(t *testing.T) {
 	req := &http.Request{
 		Header: http.Header{
 			"X-Custom-Header": []string{"CustomValue"},
@@ -192,7 +192,7 @@ func TestComposeRequestHeadersWithHeaders(t *testing.T) {
 	assert.Equal(t, expectedHeaders, headers, "Expected headers to be correctly copied and modified")
 }
 
-func TestComposeRequestHeadersNoHeaders(t *testing.T) {
+func TestComposeRequestHeaders_NoHeaders(t *testing.T) {
 	req := &http.Request{
 		Header:        http.Header{},
 		ContentLength: 0,
@@ -209,7 +209,7 @@ func TestComposeRequestHeadersNoHeaders(t *testing.T) {
 	assert.Equal(t, expectedHeaders, headers, "Expected headers to include Content-Length and Host")
 }
 
-func TestComposeRequestHeadersWithMultipleHeaders(t *testing.T) {
+func TestComposeRequestHeaders_WithMultipleHeaders(t *testing.T) {
 	req := &http.Request{
 		Header: http.Header{
 			"X-First-Header":  []string{"Value1"},

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"log"
 	"log/slog"
@@ -19,6 +20,10 @@ import (
 
 	"github.com/zjsvv/goreverseproxy/config"
 	"github.com/zjsvv/goreverseproxy/middleware"
+)
+
+var (
+	getConfig = config.GetConfig
 )
 
 type RevProxy struct {
@@ -39,7 +44,7 @@ func (rp *RevProxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func shouldBlockRequest(req *http.Request) bool {
-	config := config.GetConfig()
+	config := getConfig()
 
 	// check if any forbidden header exists
 	for header := range req.Header {
@@ -60,8 +65,16 @@ func shouldBlockRequest(req *http.Request) bool {
 	return false
 }
 
+func isJSONBody(bodyBytes []byte) bool {
+	// try to unmarshal the body into a generic structure
+	var js json.RawMessage
+	err := json.Unmarshal(bodyBytes, &js)
+
+	return err == nil
+}
+
 func maskSensitiveInfo(data string) (string, error) {
-	mask := jsonMask.NewJSONMask(config.GetConfig().MaskedNeededKeys...)
+	mask := jsonMask.NewJSONMask(getConfig().MaskedNeededKeys...)
 	mask.RegisterMaskStringFunc(jsonMask.MaskFilledString("*"))
 
 	maskedData, err := mask.Mask(data)
@@ -80,31 +93,36 @@ func modifyResponse(r *http.Response) error {
 	originalContentLength := r.ContentLength
 
 	// read the response body
-	b, err := io.ReadAll(r.Body)
+	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		slog.Error("Failed to read response body", slog.String("error", err.Error()))
 		return err
 	}
 
-	// mask sensitive data
-	maskedData, err := maskSensitiveInfo(string(b))
-	if err != nil {
-		slog.Error("Failed to mask sensitive information", slog.String("error", err.Error()))
-		return err
+	// only mask json response body
+	if isJSONBody(bodyBytes) {
+		// mask sensitive data
+		maskedData, err := maskSensitiveInfo(string(bodyBytes))
+		if err != nil {
+			slog.Error("Failed to mask sensitive information", slog.String("error", err.Error()))
+			return err
+		}
+
+		// reassign the modified body
+		buf := bytes.NewBufferString(maskedData)
+		r.Body = io.NopCloser(buf)
+
+		// update Content-Length header
+		modifiedContentLength := buf.Len()
+		r.Header.Set("Content-Length", strconv.Itoa(modifiedContentLength))
+
+		slog.Debug("[RevProxy][modifyResponse]",
+			slog.Int64("originalContentLength", originalContentLength),
+			slog.Int("modifiedContentLength", modifiedContentLength),
+		)
+	} else {
+		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 	}
-
-	// reassign the modified body
-	buf := bytes.NewBufferString(maskedData)
-	r.Body = io.NopCloser(buf)
-
-	// update Content-Length header
-	modifiedContentLength := buf.Len()
-	r.Header.Set("Content-Length", strconv.Itoa(modifiedContentLength))
-
-	slog.Debug("[RevProxy][modifyResponse]",
-		slog.Int64("originalContentLength", originalContentLength),
-		slog.Int("modifiedContentLength", modifiedContentLength),
-	)
 
 	return nil
 }
@@ -140,7 +158,7 @@ func main() {
 	// init config
 	config.InitConfig()
 
-	cfg := config.GetConfig()
+	cfg := getConfig()
 
 	revProxy, err := NewRevProxy(context.Background(), cfg.TargetUrl+":"+cfg.TargetPort)
 	if err != nil {
