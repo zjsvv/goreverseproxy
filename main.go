@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"flag"
 	"encoding/json"
 	"io"
 	"log"
@@ -23,6 +24,9 @@ import (
 )
 
 var (
+	// -4 means DEBUG; 0 means INFO; 4 means WARN; 8 means ERROR
+	logLevelPtr = flag.Int("log_level", 0, "the severity of a log event")
+
 	getConfig = config.GetConfig
 )
 
@@ -145,10 +149,26 @@ func NewRevProxy(ctx context.Context, rawUrl string) (*RevProxy, error) {
 	return s, nil
 }
 
+func getLogLevel(logLevelFlag int) slog.Leveler {
+	switch {
+	case logLevelFlag >= int(slog.LevelError):
+		return slog.LevelError
+	case logLevelFlag >= int(slog.LevelWarn):
+		return slog.LevelWarn
+	case logLevelFlag >= int(slog.LevelInfo):
+		return slog.LevelInfo
+	case logLevelFlag >= int(slog.LevelDebug):
+		return slog.LevelDebug
+	default:
+		return slog.LevelInfo
+	}
+}
+
 func main() {
+	flag.Parse()
+
 	// set a text logger
-	// TODO: set log level by flag, default level should be LevelInfo  Level = 0
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: getLogLevel(*logLevelPtr)}))
 	slog.SetDefault(logger)
 
 	// create context that listens for the interrupt signal from the OS.
