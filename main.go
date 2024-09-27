@@ -26,7 +26,7 @@ import (
 var (
 	// -4 means DEBUG; 0 means INFO; 4 means WARN; 8 means ERROR
 	logLevelPtr = flag.Int("log_level", 0, "the severity of a log event")
-	proxyPort   = flag.String("proxy_port", ":8080", "the exposed port of this proxy server")
+	portPtr     = flag.Int("port", 8080, "the exposed port of this proxy server")
 
 	getConfig = config.GetConfig
 )
@@ -186,8 +186,10 @@ func main() {
 		panic(err)
 	}
 
+	proxyPort := ":" + strconv.Itoa(*portPtr)
+
 	srv := &http.Server{
-		Addr:    *proxyPort,
+		Addr:    proxyPort,
 		Handler: middleware.NewLogger(revProxy),
 	}
 
