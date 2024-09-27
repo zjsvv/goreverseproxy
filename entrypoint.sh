@@ -7,5 +7,5 @@ PORT=${PORT:-8080}
 LOG_LEVEL=${LOG_LEVEL:-0}
 
 # Run the application with the specified port
-echo "Starting app on port $PORT"
-./main --port=$PORT --log_level=$LOG_LEVEL
+echo "Starting app on PORT($PORT) with LOG_LEVEL($LOG_LEVEL)"
+./main

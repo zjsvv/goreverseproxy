@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"flag"
 	"io"
 	"log"
 	"log/slog"
@@ -24,10 +23,6 @@ import (
 )
 
 var (
-	// -4 means DEBUG; 0 means INFO; 4 means WARN; 8 means ERROR
-	logLevelPtr = flag.Int("log_level", 0, "the severity of a log event")
-	portPtr     = flag.Int("port", 8080, "the exposed port of this proxy server")
-
 	getConfig = config.GetConfig
 )
 
@@ -38,6 +33,7 @@ type RevProxy struct {
 }
 
 func (rp *RevProxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	slog.Debug("[RevProxy][maskSensitiveInfo] testtestest")
 	// block request if it contains specific headers or parameters
 	if req.Method == http.MethodGet && shouldBlockRequest(req) {
 		slog.Debug("[RevProxy][ServeHTTP] Blocking request due to specific headers or parameters.")
@@ -150,26 +146,45 @@ func NewRevProxy(ctx context.Context, rawUrl string) (*RevProxy, error) {
 	return s, nil
 }
 
-func getLogLevel(logLevelFlag int) slog.Leveler {
+func getLogLevel(logLevelStr string) (slog.Leveler, error) {
+	level, err := strconv.Atoi(logLevelStr)
+	if err != nil {
+		return nil, err
+	}
+
 	switch {
-	case logLevelFlag >= int(slog.LevelError):
-		return slog.LevelError
-	case logLevelFlag >= int(slog.LevelWarn):
-		return slog.LevelWarn
-	case logLevelFlag >= int(slog.LevelInfo):
-		return slog.LevelInfo
-	case logLevelFlag >= int(slog.LevelDebug):
-		return slog.LevelDebug
+	case level >= int(slog.LevelError):
+		return slog.LevelError, nil
+	case level >= int(slog.LevelWarn):
+		return slog.LevelWarn, nil
+	case level >= int(slog.LevelInfo):
+		return slog.LevelInfo, nil
+	case level >= int(slog.LevelDebug):
+		return slog.LevelDebug, nil
 	default:
-		return slog.LevelInfo
+		return slog.LevelInfo, nil
 	}
 }
 
+func getEnv(key, defaultValue string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return defaultValue
+}
+
 func main() {
-	flag.Parse()
+	// get env variables
+	logLevelStr := getEnv("LOG_LEVEL", "0")
+	portStr := getEnv("PORT", "8080")
+
+	logLevel, err := getLogLevel(logLevelStr)
+	if err != nil {
+		panic(err)
+	}
 
 	// set a text logger
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: getLogLevel(*logLevelPtr)}))
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
 	slog.SetDefault(logger)
 
 	// create context that listens for the interrupt signal from the OS.
@@ -186,10 +201,8 @@ func main() {
 		panic(err)
 	}
 
-	proxyPort := ":" + strconv.Itoa(*portPtr)
-
 	srv := &http.Server{
-		Addr:    proxyPort,
+		Addr:    ":" + portStr,
 		Handler: middleware.NewLogger(revProxy),
 	}
 

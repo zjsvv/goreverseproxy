@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
@@ -200,4 +202,54 @@ func TestGracefulShutdown(t *testing.T) {
 
 	// assert
 	assert.NoError(t, err)
+}
+
+func TestGetLogLevel(t *testing.T) {
+	// define test cases
+	testCases := []struct {
+		input    string
+		expected slog.Leveler
+	}{
+		{"-5", slog.LevelInfo},
+		{"-4", slog.LevelDebug},
+		{"0", slog.LevelInfo},
+		{"4", slog.LevelWarn},
+		{"8", slog.LevelError},
+	}
+
+	// run test cases
+	for _, tc := range testCases {
+		level, err := getLogLevel(tc.input)
+		assert.NoError(t, err)
+		assert.Equal(t, tc.expected, level, "getLogLevel(%s) = %v; expected %v", tc.input, level, tc.expected)
+	}
+}
+
+func TestGetLogLevel_InvalidInput(t *testing.T) {
+	input := "astring"
+	_, err := getLogLevel(input)
+	assert.Error(t, err)
+}
+
+func TestGetEnv(t *testing.T) {
+	// setup env variables
+	os.Setenv("LOG_LEVEL", "-4")
+	os.Setenv("PORT", "8080")
+
+	// define test cases
+	testCases := []struct {
+		key        string
+		expected   string
+		defaultVal string
+	}{
+		{"LOG_LEVEL", "-4", "0"},
+		{"PORT", "8080", "8090"},
+		{"NONEXISTED_KEY", "test", "test"},
+	}
+
+	// run test cases
+	for _, tc := range testCases {
+		val := getEnv(tc.key, tc.defaultVal)
+		assert.Equal(t, tc.expected, val, "getEnv(%s) = %v; expected %v", tc.key, val, tc.expected)
+	}
 }

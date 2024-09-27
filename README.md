@@ -13,9 +13,11 @@ $ go test -v -coverprofile=cover.out ./...`
 $ go tool cover -html=cover.out`
 ```
 
-### 3. run reverse proxy server in local environment
+### 3. run reverse proxy server in local environment with debug logging
 ```sh
-$ go run main.go -port=8080 -log_level=-4`
+$ export PORT=8080
+$ export LOG_LEVEL=-4
+$ go run main.go`
 ```
 
 ### 4. build docker image
