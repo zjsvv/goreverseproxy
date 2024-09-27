@@ -33,7 +33,6 @@ type RevProxy struct {
 }
 
 func (rp *RevProxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	slog.Debug("[RevProxy][maskSensitiveInfo] testtestest")
 	// block request if it contains specific headers or parameters
 	if req.Method == http.MethodGet && shouldBlockRequest(req) {
 		slog.Debug("[RevProxy][ServeHTTP] Blocking request due to specific headers or parameters.")
@@ -70,7 +69,6 @@ func isJSONBody(bodyBytes []byte) bool {
 	// try to unmarshal the body into a generic structure
 	var js json.RawMessage
 	err := json.Unmarshal(bodyBytes, &js)
-
 	return err == nil
 }
 
@@ -218,7 +216,7 @@ func main() {
 
 	// restore default behavior on the interrupt signal and notify user of shutdown
 	stop()
-	slog.Info("shutting down gracefully, press Ctrl+C again to force")
+	slog.Info("Shutting down gracefully, press Ctrl+C again to force")
 
 	// the context is used to inform the server it has 5 seconds to finish
 	// the request it is currently handling

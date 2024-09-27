@@ -25,7 +25,7 @@ COPY /conf/config.yaml /conf/config.yaml
 # Copy the binary from the build stage
 COPY --from=build-stage /main .
 
-# copy the startup script
+# Copy the startup script
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

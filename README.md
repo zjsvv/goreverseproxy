@@ -5,24 +5,24 @@ This reverse proxy forwards all incoming requests to their intended destinations
 ## Useful Commands for Development
 ### 1. run test for all unit tests and generate report
 ```sh
-$ go test -v -coverprofile=cover.out ./...`
+$ go test -v -coverprofile=cover.out ./...
 ```
 
 ### 2. check coverage report
 ```sh
-$ go tool cover -html=cover.out`
+$ go tool cover -html=cover.out
 ```
 
 ### 3. run reverse proxy server in local environment with debug logging
 ```sh
 $ export PORT=8080
 $ export LOG_LEVEL=-4
-$ go run main.go`
+$ go run main.go
 ```
 
 ### 4. build docker image
 ```sh
-$ docker build -t goreverseproxy:latest  .
+$ docker build -t goreverseproxy:latest .
 ```
 
 ### 5. run docker image for debugging
